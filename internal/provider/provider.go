@@ -2,8 +2,9 @@ package provider
 
 import (
 	"context"
-	"net/http"
 	"os"
+
+	"terraform-provider-prodata/internal/client"
 
 	"github.com/hashicorp/terraform-plugin-framework/action"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -142,7 +143,23 @@ func (p *ProDataProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	client := http.DefaultClient
+	// Create client
+	client, err := client.NewClient(&client.ClientConfig{
+		ApiBaseUrl:   apiBaseUrl,
+		ApiKeyId:     apiKeyId,
+		ApiSecretKey: apiSecretKey,
+		Region:       region,
+		Project:      project,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to create ProData client",
+			err.Error(),
+		)
+		return
+	}
+
+	// Make client available to resources
 	resp.ResourceData = client
 }
 
