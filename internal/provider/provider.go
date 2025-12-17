@@ -47,24 +47,24 @@ func (p *ProDataProvider) Schema(ctx context.Context, req provider.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"api_base_url": schema.StringAttribute{
 				MarkdownDescription: "The base URL of the ProData API. Can also be set via `PRODATA_API_BASE_URL` environment variable.",
-				Optional:            false,
+				Required:            true,
 			},
 			"api_key_id": schema.StringAttribute{
 				MarkdownDescription: "The API Key ID for authentication. Can also be set via `PRODATA_API_KEY_ID` environment variable.",
-				Optional:            false,
+				Required:            true,
 			},
 			"api_secret_key": schema.StringAttribute{
 				MarkdownDescription: "The API Secret Key for authentication. Can also be set via `PRODATA_API_SECRET_KEY` environment variable.",
-				Optional:            false,
+				Required:            true,
 				Sensitive:           true,
 			},
 			"region": schema.StringAttribute{
 				MarkdownDescription: "The region to use. Can also be set via `PRODATA_REGION` environment variable.",
-				Optional:            false,
+				Required:            true,
 			},
 			"project": schema.StringAttribute{
-				MarkdownDescription: "The project ID to use. Can also be set via `PRODATA_PROJECT` environment variable.",
-				Optional:            false,
+				MarkdownDescription: "The project to use. Can also be set via `PRODATA_PROJECT` environment variable.",
+				Required:            true,
 			},
 		},
 	}
