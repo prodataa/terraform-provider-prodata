@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"terraform-provider-prodata/internal/client"
+	"terraform-provider-prodata/internal/provider/datasources"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -14,17 +15,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ProDataProvider satisfies various provider interfaces.
-var (
-	_ provider.Provider = &ProDataProvider{}
-)
+var _ provider.Provider = &ProDataProvider{}
 
-// ProDataProvider defines the provider implementation.
 type ProDataProvider struct {
 	version string
 }
 
-// ProDataProviderModel describes the provider data model.
 type ProDataProviderModel struct {
 	ApiBaseUrl   types.String `tfsdk:"api_base_url"`
 	ApiKeyId     types.String `tfsdk:"api_key_id"`
@@ -146,7 +142,7 @@ func (p *ProDataProvider) Configure(ctx context.Context, req provider.ConfigureR
 		ApiKeyId:     apiKeyId,
 		ApiSecretKey: apiSecretKey,
 		Region:       region,
-		Project:      projectId,
+		ProjectId:    projectId,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -161,14 +157,14 @@ func (p *ProDataProvider) Configure(ctx context.Context, req provider.ConfigureR
 	resp.ResourceData = client
 }
 
-// Resources defines the resources implemented in the provider.
 func (p *ProDataProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{}
 }
 
-// DataSources defines the data sources implemented in the provider.
 func (p *ProDataProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		datasources.ProDataImageDataSource,
+	}
 }
 
 func New(version string) func() provider.Provider {
