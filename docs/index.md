@@ -22,19 +22,25 @@ To use the ProData provider, you'll need:
 terraform {
   required_providers {
     prodata = {
-      source  = "prodata/prodata"
+      source  = "prodata-cloud/prodata"
       version = "~> 1.0"
     }
   }
 }
 
 provider "prodata" {
-  api_base_url   = "https://api.prodata.cloud"
-  api_key_id     = "your-api-key-id"
-  api_secret_key = "your-api-secret-key"
-  region         = "us-east-1"
-  project_id     = "your-project-id"
+  # Base URL varies by location:
+  # Uzbekistan: [https://my.pro-data.tech](https://my.pro-data.tech)
+  # Kazakhstan: [https://kz-1.pro-data.tech](https://kz-1.pro-data.tech)
+  api_base_url   = "[https://my.pro-data.tech](https://my.pro-data.tech)"
+  
+  api_key_id     = var.prodata_api_key_id
+  api_secret_key = var.prodata_api_secret_key
+  
+  region         = var.prodata_project_id
+  project_id     = var.prodata_project_id
 }
+
 ```
 
 ## Authentication
@@ -47,11 +53,11 @@ Configure credentials directly in your Terraform configuration:
 
 ```terraform
 provider "prodata" {
-  api_base_url   = "https://api.prodata.cloud"
-  api_key_id     = "prod_key_abc123"
-  api_secret_key = "prod_secret_xyz789"
-  region         = "us-west-2"
-  project_id     = "proj_456def"
+  api_base_url   = "https://my.pro-data.tech"
+  api_key_id     = "ak_UCSDcaxx..."
+  api_secret_key = "sc_Xxdsfzzc..."
+  region         = "UZ-5"
+  project_id     = "123"
 }
 ```
 
@@ -60,11 +66,11 @@ provider "prodata" {
 Set credentials using environment variables for enhanced security:
 
 ```bash
-export PRODATA_API_BASE_URL="https://api.prodata.cloud"
-export PRODATA_API_KEY_ID="prod_key_abc123"
-export PRODATA_API_SECRET_KEY="prod_secret_xyz789"
-export PRODATA_REGION="us-west-2"
-export PRODATA_PROJECT_ID="proj_456def"
+export PRODATA_API_BASE_URL="https://my.pro-data.tech"
+export PRODATA_API_KEY_ID="your-api-key-id"
+export PRODATA_API_SECRET_KEY="your-api-secret-key"
+export PRODATA_REGION="UZ-5"
+export PRODATA_PROJECT_ID="your-project-id"
 ```
 
 Then use the provider without explicit credentials:
@@ -85,11 +91,11 @@ The following arguments are supported in the provider configuration:
 
 - **`api_base_url`** (String) - The base URL for the ProData API endpoint.
   *Environment variable:* `PRODATA_API_BASE_URL`
-  *Example:* `https://api.prodata.cloud`
+  *Example:* `https://my.pro-data.tech`
 
 - **`api_key_id`** (String) - Your ProData API Key ID used for authentication.
   *Environment variable:* `PRODATA_API_KEY_ID`
-  *Example:* `prod_key_abc123`
+  *Example:* `ak_UCSDcax...`
 
 - **`api_secret_key`** (String, Sensitive) - Your ProData API Secret Key used for authentication.
   *Environment variable:* `PRODATA_API_SECRET_KEY`
@@ -97,44 +103,19 @@ The following arguments are supported in the provider configuration:
 
 - **`region`** (String) - The ProData Cloud region where resources will be provisioned.
   *Environment variable:* `PRODATA_REGION`
-  *Available regions:* `us-east-1`, `us-west-2`, `eu-west-1`, `ap-southeast-1`
+  *Available regions:* `KZ-1`, `UZ-5`, `UZ-3`
 
 - **`project_id`** (String) - The unique identifier for your ProData project.
   *Environment variable:* `PRODATA_PROJECT_ID`
-  *Example:* `proj_456def`
-
-## Multiple Provider Instances
-
-You can configure multiple instances of the ProData provider to manage resources across different projects or regions:
-
-```terraform
-# Default provider for production
-provider "prodata" {
-  region     = "us-east-1"
-  project_id = "prod-project"
-}
-
-# Secondary provider for staging environment
-provider "prodata" {
-  alias      = "staging"
-  region     = "us-west-2"
-  project_id = "staging-project"
-}
-
-# Use the staging provider explicitly
-resource "prodata_example" "staging_resource" {
-  provider = prodata.staging
-  # ... resource configuration
-}
-```
+  *Example:* `123`
 
 ## Obtaining API Credentials
 
 To generate API credentials for the ProData provider:
 
 1. Log in to your ProData Cloud console
-2. Navigate to **Settings** → **API Keys**
-3. Click **Generate New API Key**
+2. Navigate to **Account** → **Access Keys**
+3. Click **Generate Key**
 4. Copy your API Key ID and Secret Key (the secret will only be shown once)
 5. Store your credentials securely
 
@@ -142,20 +123,17 @@ To generate API credentials for the ProData provider:
 
 ProData Cloud is available in the following regions:
 
-| Region Code      | Location                 | API Endpoint                               |
-| ---------------- | ------------------------ | ------------------------------------------ |
-| `us-east-1`      | US East (Virginia)       | `https://us-east-1.api.prodata.cloud`      |
-| `us-west-2`      | US West (Oregon)         | `https://us-west-2.api.prodata.cloud`      |
-| `eu-west-1`      | Europe (Ireland)         | `https://eu-west-1.api.prodata.cloud`      |
-| `ap-southeast-1` | Asia Pacific (Singapore) | `https://ap-southeast-1.api.prodata.cloud` |
+| Region Code | Location   | API Endpoint                 |
+| ----------- | ---------- | ---------------------------- |
+| `UZ-5`      | Uzbekistan | `https://my.pro-data.tech`   |
+| `UZ-3`      | Uzbekistan | `https://my.pro-data.tech`   |
+| `KZ-1`      | Kazakhstan | `https://kz-1.pro-data.tech` |
 
 ## Support and Resources
 
-- **Documentation:** [https://docs.prodata.cloud](https://docs.prodata.cloud)
-- **API Reference:** [https://api-docs.prodata.cloud](https://api-docs.prodata.cloud)
-- **Support Portal:** [https://support.prodata.cloud](https://support.prodata.cloud)
-- **Community Forum:** [https://community.prodata.cloud](https://community.prodata.cloud)
-
+- **Support Portal Help Desk:** [https://helpdesk.pro-data.tech/](https://helpdesk.pro-data.tech)
+- **Support Telegram bot:** [https://t.me/PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot)
+- 
 ## Provider Development
 
 This provider is maintained by the ProData team. For issues, feature requests, or contributions, visit our GitHub repository.
