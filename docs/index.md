@@ -8,13 +8,21 @@ description: |-
 
 The ProData provider allows you to manage your ProData Cloud infrastructure using Terraform's declarative configuration language. With this provider, you can automate the provisioning, configuration, and lifecycle management of ProData resources.
 
+## Requirements
+
+| Requirement                                                      | Version |
+| ---------------------------------------------------------------- | ------- |
+| [Terraform](https://developer.hashicorp.com/terraform/downloads) | >= 1.0  |
+| ProData Provider                                                 | >= 1.0  |
+
 ## Getting Started
 
-To use the ProData provider, you'll need:
+Before you begin, ensure you have:
 
-- A ProData Cloud account
-- API credentials (API Access Key and Secret Key)
-- Your project ID and preferred region
+1. A [ProData Cloud account](https://my.pro-data.tech)
+2. API credentials (API Key ID and Secret Key)
+3. Your Project ID
+4. Selected region (`UZ-5`, `UZ-3`, or `KZ-1`)
 
 ## Quick Start Example
 
@@ -83,41 +91,42 @@ provider "prodata" {
 
 **Best Practice:** Use environment variables or secret management tools (like HashiCorp Vault) to avoid hardcoding sensitive credentials in your Terraform files.
 
-## Configuration Reference
+## Argument Reference
 
-The following arguments are supported in the provider configuration:
+The following arguments are supported:
 
-### Required Arguments
+| Argument         | Type   | Required | Description                                                                                          |
+| ---------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------- |
+| `api_base_url`   | String | Yes      | The base URL for the ProData API. See [Regional Availability](#regional-availability) for endpoints. |
+| `api_key_id`     | String | Yes      | Your API Key ID for authentication.                                                                  |
+| `api_secret_key` | String | Yes      | Your API Secret Key for authentication. **Sensitive** - will not appear in logs.                     |
+| `region`         | String | Yes      | The region where resources will be created. Valid values: `UZ-5`, `UZ-3`, `KZ-1`.                    |
+| `project_id`     | String | Yes      | Your ProData project ID.                                                                             |
 
-- **`api_base_url`** (String) - The base URL for the ProData API endpoint.
-  *Environment variable:* `PRODATA_API_BASE_URL`
-  *Example:* `https://my.pro-data.tech`
+### Environment Variables
 
-- **`api_key_id`** (String) - Your ProData API Key ID used for authentication.
-  *Environment variable:* `PRODATA_API_KEY_ID`
-  *Example:* `ak_UCSDcax...`
+All arguments can be set via environment variables. This is the recommended approach for credentials.
 
-- **`api_secret_key`** (String, Sensitive) - Your ProData API Secret Key used for authentication.
-  *Environment variable:* `PRODATA_API_SECRET_KEY`
-  *Security Note:* This value is marked as sensitive and will not appear in logs.
+| Argument         | Environment Variable     |
+| ---------------- | ------------------------ |
+| `api_base_url`   | `PRODATA_API_BASE_URL`   |
+| `api_key_id`     | `PRODATA_API_KEY_ID`     |
+| `api_secret_key` | `PRODATA_API_SECRET_KEY` |
+| `region`         | `PRODATA_REGION`         |
+| `project_id`     | `PRODATA_PROJECT_ID`     |
 
-- **`region`** (String) - The ProData Cloud region where resources will be provisioned.
-  *Environment variable:* `PRODATA_REGION`
-  *Available regions:* `KZ-1`, `UZ-5`, `UZ-3`
-
-- **`project_id`** (String) - The unique identifier for your ProData project.
-  *Environment variable:* `PRODATA_PROJECT_ID`
-  *Example:* `123`
+> **Note:** Values set in the provider block override environment variables.
 
 ## Obtaining API Credentials
 
-To generate API credentials for the ProData provider:
+To generate API credentials:
 
-1. Log in to your ProData Cloud console
+1. Log in to your [ProData Cloud console](https://my.pro-data.tech)
 2. Navigate to **Account** → **Access Keys**
 3. Click **Generate Key**
-4. Copy your API Key ID and Secret Key (the secret will only be shown once)
-5. Store your credentials securely
+4. Copy your API Key ID and Secret Key
+
+> **Important:** The Secret Key is only displayed once. Store it securely immediately after creation.
 
 ## Regional Availability
 
@@ -129,11 +138,26 @@ ProData Cloud is available in the following regions:
 | `UZ-3`      | Uzbekistan | `https://my.pro-data.tech`   |
 | `KZ-1`      | Kazakhstan | `https://kz-1.pro-data.tech` |
 
-## Support and Resources
+## Troubleshooting
 
-- **Support Portal Help Desk:** [https://helpdesk.pro-data.tech/](https://helpdesk.pro-data.tech)
-- **Support Telegram bot:** [https://t.me/PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot)
+### Authentication Errors
 
-## Provider Development
+If you receive authentication errors:
 
-This provider is maintained by the ProData team. For issues, feature requests, or contributions, visit our GitHub repository.
+1. Verify your API Key ID and Secret Key are correct
+2. Check that your API key has not expired or been revoked
+3. Ensure you're using the correct `api_base_url` for your region
+
+### Region Errors
+
+If resources fail to create due to region issues:
+
+1. Confirm the region code matches your project's location
+2. Verify the `api_base_url` corresponds to your selected region
+
+## Support
+
+| Channel   | Link                                                       |
+| --------- | ---------------------------------------------------------- |
+| Help Desk | [helpdesk.pro-data.tech](https://helpdesk.pro-data.tech)   |
+| Telegram  | [@PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot) |
