@@ -30,14 +30,14 @@ terraform {
 
 provider "prodata" {
   # Base URL varies by location:
-  # Uzbekistan: [https://my.pro-data.tech](https://my.pro-data.tech)
-  # Kazakhstan: [https://kz-1.pro-data.tech](https://kz-1.pro-data.tech)
-  api_base_url   = "[https://my.pro-data.tech](https://my.pro-data.tech)"
-  
+  # Uzbekistan: https://my.pro-data.tech
+  # Kazakhstan: https://kz-1.pro-data.tech
+  api_base_url   = "https://my.pro-data.tech"
+
   api_key_id     = var.prodata_api_key_id
   api_secret_key = var.prodata_api_secret_key
-  
-  region         = var.prodata_project_id
+
+  region         = var.prodata_region
   project_id     = var.prodata_project_id
 }
 
@@ -133,7 +133,7 @@ ProData Cloud is available in the following regions:
 
 - **Support Portal Help Desk:** [https://helpdesk.pro-data.tech/](https://helpdesk.pro-data.tech)
 - **Support Telegram bot:** [https://t.me/PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot)
-- 
+
 ## Provider Development
 
 This provider is maintained by the ProData team. For issues, feature requests, or contributions, visit our GitHub repository.
