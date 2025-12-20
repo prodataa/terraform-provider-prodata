@@ -13,145 +13,133 @@ import (
 )
 
 type Client struct {
-	ApiBaseUrl   string
-	ApiKeyId     string
-	ApiSecretKey string
-	Region       string
-	ProjectId    string
-	HTTPClient   *http.Client
+	baseURL      string
+	apiKeyID     string
+	apiSecretKey string
+	region       string
+	projectID    string
+	httpClient   *http.Client
 }
 
-type ClientConfig struct {
-	ApiBaseUrl   string
-	ApiKeyId     string
-	ApiSecretKey string
-	Region       string
-	ProjectId    string
+type Config struct {
+	APIBaseURL   string
+	APIKeyID     string
+	APISecretKey string
 }
 
-// API Response structures
-type ApiResponse[T any] struct {
-	Success bool       `json:"success"`
-	Data    T          `json:"data"`
-	Errors  []ApiError `json:"errors"`
-}
-
-type ApiError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-type Image struct {
-	ID       int64 `json:"id"`
-	IsCustom bool  `json:"isCustom"`
-}
-
-func NewClient(cfg *ClientConfig) (*Client, error) {
-	if cfg.ApiBaseUrl == "" {
-		return nil, fmt.Errorf("api_base_url is required")
-	}
-	if cfg.ApiKeyId == "" {
-		return nil, fmt.Errorf("api_key_id is required")
-	}
-	if cfg.ApiSecretKey == "" {
-		return nil, fmt.Errorf("api_secret_key is required")
-	}
-	if cfg.Region == "" {
-		return nil, fmt.Errorf("region is required")
-	}
-	if cfg.ProjectId == "" {
-		return nil, fmt.Errorf("project is required")
+func New(cfg Config) (*Client, error) {
+	if cfg.APIBaseURL == "" || cfg.APIKeyID == "" || cfg.APISecretKey == "" {
+		return nil, fmt.Errorf("all config fields are required")
 	}
 
 	return &Client{
-		ApiBaseUrl:   cfg.ApiBaseUrl,
-		ApiKeyId:     cfg.ApiKeyId,
-		ApiSecretKey: cfg.ApiSecretKey,
-		Region:       cfg.Region,
-		ProjectId:    cfg.ProjectId,
-		HTTPClient: &http.Client{
+		baseURL:      strings.TrimRight(cfg.APIBaseURL, "/") + "/panel-main",
+		apiKeyID:     cfg.APIKeyID,
+		apiSecretKey: cfg.APISecretKey,
+		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}, nil
 }
 
-func (c *Client) GetImageBySlug(ctx context.Context, slug string) (*Image, error) {
-	return c.getImage(ctx, fmt.Sprintf("slug=%s", url.QueryEscape(slug)))
+// HTTP helpers
+type apiResponse[T any] struct {
+	Success bool       `json:"success"`
+	Data    T          `json:"data"`
+	Errors  []apiError `json:"errors"`
 }
 
-func (c *Client) GetImageByName(ctx context.Context, name string) (*Image, error) {
-	return c.getImage(ctx, fmt.Sprintf("name=%s", url.QueryEscape(name)))
+type apiError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
-func (c *Client) getImage(ctx context.Context, query string) (*Image, error) {
-	path := fmt.Sprintf("/api/v2/image?%s", query)
-
-	body, err := c.Get(ctx, path)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ApiResponse[*Image]
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse image response: %w", err)
-	}
-
-	if !response.Success {
-		return nil, fmt.Errorf("%s", formatApiErrors(response.Errors))
-	}
-
-	return response.Data, nil
+func (c *Client) get(ctx context.Context, path string, result any) error {
+	return c.do(ctx, http.MethodGet, path, nil, result)
 }
 
-// Helpers
-func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
+func (c *Client) post(ctx context.Context, path string, body, result any) error {
+	return c.do(ctx, http.MethodPost, path, body, result)
+}
+
+func (c *Client) delete(ctx context.Context, path string) error {
+	return c.do(ctx, http.MethodDelete, path, nil, nil)
+}
+
+func (c *Client) do(ctx context.Context, method, path string, body, result any) error {
 	var reqBody io.Reader
 	if body != nil {
-		jsonBody, err := json.Marshal(body)
+		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+			return fmt.Errorf("marshal request: %w", err)
 		}
-		reqBody = bytes.NewBuffer(jsonBody)
+		reqBody = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.ApiBaseUrl+"/panel-main"+path, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("create request: %w", err)
 	}
 
-	// Set authentication headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Api-Key-Id", c.ApiKeyId)
-	req.Header.Set("X-Api-Secret-Key", c.ApiSecretKey)
-	req.Header.Set("X-Region", c.Region)
-	req.Header.Set("X-Project-Id", c.ProjectId)
+	req.Header.Set("X-Api-Key-Id", c.apiKeyID)
+	req.Header.Set("X-Api-Secret-Key", c.apiSecretKey)
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+	var apiResp apiResponse[json.RawMessage]
+
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return fmt.Errorf("parse response: %w", err)
 	}
 
-	return respBody, nil
+	if !apiResp.Success {
+		return fmt.Errorf("api error: %s", formatErrors(apiResp.Errors))
+	}
+
+	if result == nil {
+		return nil
+	}
+
+	if err := json.Unmarshal(apiResp.Data, result); err != nil {
+		return fmt.Errorf("parse data: %w", err)
+	}
+
+	return nil
 }
 
-func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
-	return c.doRequest(ctx, http.MethodGet, path, nil)
-}
-
-func formatApiErrors(errors []ApiError) string {
-	if len(errors) == 0 {
+func formatErrors(errs []apiError) string {
+	if len(errs) == 0 {
 		return "unknown error"
 	}
-
-	var messages []string
-	for _, e := range errors {
-		messages = append(messages, fmt.Sprintf("[%d] %s", e.Code, e.Message))
+	msgs := make([]string, len(errs))
+	for i, e := range errs {
+		msgs[i] = fmt.Sprintf("[%d] %s", e.Code, e.Message)
 	}
-	return strings.Join(messages, "; ")
+	return strings.Join(msgs, "; ")
+}
+
+// Image
+type Image struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Slug     string `json:"slug"`
+	IsCustom bool   `json:"isCustom"`
+}
+
+func (c *Client) GetImageBySlug(ctx context.Context, slug string) (*Image, error) {
+	var img Image
+	err := c.get(ctx, "/api/v2/image?slug="+url.QueryEscape(slug), &img)
+	return &img, err
+}
+
+func (c *Client) GetImageByName(ctx context.Context, name string) (*Image, error) {
+	var img Image
+	err := c.get(ctx, "/api/v2/image?name="+url.QueryEscape(name), &img)
+	return &img, err
 }

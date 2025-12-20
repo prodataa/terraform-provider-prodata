@@ -1,67 +1,57 @@
 ---
-page_title: "prodata_image Data Source - ProData Provider"
-subcategory: "VM"
+page_title: "prodata_image Data Source"
 description: |-
-  Get information about a ProData image (OS template or custom image) for use in other resources.
+  Lookup ProData OS templates and custom images.
 ---
 
 # prodata_image (Data Source)
 
-Use this data source to retrieve information about a ProData image. Images can be either OS templates (like Ubuntu, Debian, CentOS) or custom images that you've created.
+Lookup ProData images by slug (OS templates) or name (custom images).
 
 ## Example Usage
 
-### Lookup by Slug (OS Template)
+### OS Template by Slug
 
 ```terraform
 data "prodata_image" "ubuntu" {
   slug = "ubuntu-22.04"
 }
 
-# Use the image ID in a VM resource
-resource "prodata_vm" "example" {
-  name     = "my-server"
-  image_id = data.prodata_image.ubuntu.id
-  # ... other configuration
+output "image_id" {
+  value = data.prodata_image.ubuntu.id
 }
 ```
 
-### Lookup by Name (Custom Image)
+### Custom Image by Name
 
 ```terraform
-data "prodata_image" "my_custom_image" {
-  name = "my-custom-web-server"
+data "prodata_image" "my_image" {
+  name = "my-custom-image"
 }
 
 output "image_info" {
   value = {
-    id        = data.prodata_image.my_custom_image.id
-    is_custom = data.prodata_image.my_custom_image.is_custom
+    id        = data.prodata_image.my_image.id
+    is_custom = data.prodata_image.my_image.is_custom
   }
 }
 ```
 
-## Argument Reference
+## Schema
 
-The following arguments are supported. **Note:** You must specify either `slug` or `name`, but not both.
+### Optional
 
-- `slug` - (Optional) The slug of the image. Used for OS template lookup (e.g., `ubuntu-22.04`, `debian-11`, `centos-8`). Mutually exclusive with `name`.
-- `name` - (Optional) The name of the image. Used for custom images lookup. Mutually exclusive with `slug`.
+You must specify exactly one of the following:
 
-## Attribute Reference
+- `name` (String) Image name for custom images. Conflicts with `slug`.
+- `slug` (String) Image slug for OS templates (e.g., `ubuntu-22.04`, `debian-11`). Conflicts with `name`.
 
-In addition to all arguments above, the following attributes are exported:
+### Read-Only
 
-- `id` - The unique identifier of the image.
-- `is_custom` - Boolean indicating whether this is a custom image (`true`) or an OS template (`false`).
+- `id` (Number) Image ID.
+- `is_custom` (Boolean) Whether this is a custom image (`true`) or OS template (`false`).
 
-## Common OS Template Slugs
+## Need Help?
 
-Here are some commonly used OS template slugs:
-
-- `ubuntu-22.04`  - Ubuntu 22.04 LTS
-- `ubuntu-20.04`  - Ubuntu 20.04 LTS
-- `debian-11`     - Debian 11 (Bullseye)
-- `debian-12`     - Debian 12 (Bookworm)
-
-> **Note:** Available OS templates may vary by region. Check your ProData Cloud console for the complete list of available images.
+- **Help Desk**: [helpdesk.pro-data.tech](https://helpdesk.pro-data.tech)
+- **Telegram**: [@PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot)

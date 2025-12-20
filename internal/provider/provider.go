@@ -22,11 +22,15 @@ type ProDataProvider struct {
 }
 
 type ProDataProviderModel struct {
-	ApiBaseUrl   types.String `tfsdk:"api_base_url"`
-	ApiKeyId     types.String `tfsdk:"api_key_id"`
-	ApiSecretKey types.String `tfsdk:"api_secret_key"`
-	Region       types.String `tfsdk:"region"`
-	ProjectId    types.String `tfsdk:"project_id"`
+	APIBaseURL   types.String `tfsdk:"api_base_url"`
+	APIKeyID     types.String `tfsdk:"api_key_id"`
+	APISecretKey types.String `tfsdk:"api_secret_key"`
+}
+
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &ProDataProvider{version: version}
+	}
 }
 
 func (p *ProDataProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -36,28 +40,20 @@ func (p *ProDataProvider) Metadata(ctx context.Context, req provider.MetadataReq
 
 func (p *ProDataProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "The ProData provider allows you to interact with ProData Cloud resources.",
+		MarkdownDescription: "Manage ProData Cloud resources.",
 		Attributes: map[string]schema.Attribute{
 			"api_base_url": schema.StringAttribute{
-				MarkdownDescription: "The base URL of the ProData API. Can also be set via `PRODATA_API_BASE_URL` environment variable.",
+				MarkdownDescription: "ProData API base URL. Env: `PRODATA_API_BASE_URL`.",
 				Optional:            true,
 			},
 			"api_key_id": schema.StringAttribute{
-				MarkdownDescription: "The API Key ID for authentication. Can also be set via `PRODATA_API_KEY_ID` environment variable.",
+				MarkdownDescription: "API Key ID. Env: `PRODATA_API_KEY_ID`.",
 				Optional:            true,
 			},
 			"api_secret_key": schema.StringAttribute{
-				MarkdownDescription: "The API Secret Key for authentication. Can also be set via `PRODATA_API_SECRET_KEY` environment variable.",
+				MarkdownDescription: "API Secret Key. Env: `PRODATA_API_SECRET`.",
 				Optional:            true,
 				Sensitive:           true,
-			},
-			"region": schema.StringAttribute{
-				MarkdownDescription: "The region to use. Can also be set via `PRODATA_REGION` environment variable.",
-				Optional:            true,
-			},
-			"project_id": schema.StringAttribute{
-				MarkdownDescription: "The project to use. Can also be set via `PRODATA_PROJECT_ID` environment variable.",
-				Optional:            true,
 			},
 		},
 	}
@@ -71,90 +67,38 @@ func (p *ProDataProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	// Environment variable fallbacks
-	apiBaseUrl := os.Getenv("PRODATA_API_BASE_URL")
-	apiKeyId := os.Getenv("PRODATA_API_KEY_ID")
-	apiSecretKey := os.Getenv("PRODATA_API_SECRET_KEY")
-	region := os.Getenv("PRODATA_REGION")
-	projectId := os.Getenv("PRODATA_PROJECT_ID")
-
-	// Data values override environment variables
-	if !data.ApiBaseUrl.IsNull() {
-		apiBaseUrl = data.ApiBaseUrl.ValueString()
-	}
-	if !data.ApiKeyId.IsNull() {
-		apiKeyId = data.ApiKeyId.ValueString()
-	}
-	if !data.ApiSecretKey.IsNull() {
-		apiSecretKey = data.ApiSecretKey.ValueString()
-	}
-	if !data.Region.IsNull() {
-		region = data.Region.ValueString()
-	}
-	if !data.ProjectId.IsNull() {
-		projectId = data.ProjectId.ValueString()
+	// Build config with env fallbacks
+	cfg := client.Config{
+		APIBaseURL:   envOrValue("PRODATA_API_BASE_URL", data.APIBaseURL),
+		APIKeyID:     envOrValue("PRODATA_API_KEY_ID", data.APIKeyID),
+		APISecretKey: envOrValue("PRODATA_API_SECRET", data.APISecretKey),
 	}
 
-	// Validation
-	if apiBaseUrl == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_base_url"),
-			"Missing API Base URL",
-			"The provider requires api_base_url to be set either in the configuration or via PRODATA_API_URL environment variable.",
-		)
+	// Validate required fields
+	if cfg.APIBaseURL == "" {
+		resp.Diagnostics.AddAttributeError(path.Root("api_base_url"), "Missing API Base URL",
+			"Set api_base_url in config or PRODATA_API_BASE_URL environment variable.")
 	}
-	if apiKeyId == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_key_id"),
-			"Missing API Key ID",
-			"The provider requires api_key_id to be set either in the configuration or via PRODATA_API_KEY_ID environment variable.",
-		)
+	if cfg.APIKeyID == "" {
+		resp.Diagnostics.AddAttributeError(path.Root("api_key_id"), "Missing API Key ID",
+			"Set api_key_id in config or PRODATA_API_KEY_ID environment variable.")
 	}
-	if apiSecretKey == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_secret_key"),
-			"Missing API Secret Key",
-			"The provider requires api_secret_key to be set either in the configuration or via PRODATA_API_SECRET_KEY environment variable.",
-		)
+	if cfg.APISecretKey == "" {
+		resp.Diagnostics.AddAttributeError(path.Root("api_secret_key"), "Missing API Secret",
+			"Set api_secret_key in config or PRODATA_API_SECRET environment variable.")
 	}
-	if region == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("region"),
-			"Missing Region",
-			"The provider requires region to be set either in the configuration or via PRODATA_REGION environment variable.",
-		)
-	}
-	if projectId == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("project_id"),
-			"Missing Project",
-			"The provider requires project to be set either in the configuration or via PRODATA_PROJECT_ID environment variable.",
-		)
-	}
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Create client
-	client, err := client.NewClient(&client.ClientConfig{
-		ApiBaseUrl:   apiBaseUrl,
-		ApiKeyId:     apiKeyId,
-		ApiSecretKey: apiSecretKey,
-		Region:       region,
-		ProjectId:    projectId,
-	})
+	c, err := client.New(cfg)
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to create ProData client",
-			err.Error(),
-		)
+		resp.Diagnostics.AddError("Failed to create client", err.Error())
 		return
 	}
 
-	// Make client available to resources
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	resp.DataSourceData = c
+	resp.ResourceData = c
 }
 
 func (p *ProDataProvider) Resources(ctx context.Context) []func() resource.Resource {
@@ -163,14 +107,14 @@ func (p *ProDataProvider) Resources(ctx context.Context) []func() resource.Resou
 
 func (p *ProDataProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		datasources.ProDataImageDataSource,
+		datasources.NewImageDataSource,
 	}
 }
 
-func New(version string) func() provider.Provider {
-	return func() provider.Provider {
-		return &ProDataProvider{
-			version: version,
-		}
+// envOrValue returns the config value if set, otherwise falls back to env var
+func envOrValue(envKey string, value types.String) string {
+	if !value.IsNull() {
+		return value.ValueString()
 	}
+	return os.Getenv(envKey)
 }
