@@ -1,14 +1,39 @@
 ---
-page_title: "ProData Provider"
+page_title: "Provider: ProData"
 description: |-
-  Manage ProData Cloud resources with Terraform.
+  The ProData provider enables Terraform to manage ProData Cloud resources.
 ---
 
 # ProData Provider
 
-Manage ProData Cloud infrastructure using Terraform.
+The ProData provider enables Terraform to manage [ProData Cloud](https://pro-data.tech) infrastructure.
 
 ## Example Usage
+
+### Using Environment Variables (Recommended)
+
+```bash
+export PRODATA_API_BASE_URL="https://my.pro-data.tech"
+export PRODATA_API_KEY_ID="your-api-key-id"
+export PRODATA_API_SECRET_KEY="your-api-secret-key"
+export PRODATA_REGION="UZ-5"
+export PRODATA_PROJECT_ID="123"
+```
+
+```terraform
+terraform {
+  required_providers {
+    prodata = {
+      source  = "prodata-cloud/prodata"
+      version = "~> 0.1"
+    }
+  }
+}
+
+provider "prodata" {}
+```
+
+### Using Provider Configuration
 
 ```terraform
 terraform {
@@ -24,69 +49,40 @@ provider "prodata" {
   api_base_url   = "https://my.pro-data.tech"
   api_key_id     = "your-api-key-id"
   api_secret_key = "your-api-secret-key"
-  region         = "your-region(UZ-5/UZ-3/KZ-1)"
+  region         = "UZ-5"
   project_id     = 123
 }
-
 ```
+
+-> **Note:** Configuration values take precedence over environment variables.
 
 ## Authentication
 
-### Using Environment Variables (Recommended)
+Obtain API credentials from the ProData Cloud console:
 
-```bash
-export PRODATA_API_BASE_URL="https://my.pro-data.tech"
-export PRODATA_API_KEY_ID="your-api-key-id"
-export PRODATA_API_SECRET_KEY="your-api-secret-key"
-```
-
-```terraform
-provider "prodata" {}
-```
-
-### Using Provider Configuration
-
-```terraform
-provider "prodata" {
-  api_base_url   = "https://my.pro-data.tech"
-  api_key_id     = "your-api-key-id"
-  api_secret_key = "your-api-secret-key"
-  region         = "your-region(UZ-5/UZ-3/KZ-1)"
-  project_id     = 123
-}
-```
+1. Log in to your ProData Cloud console
+2. Navigate to **Account** > **Access Keys**
+3. Click **Generate Key**
+4. Save the API Key ID and Secret Key (shown only once)
 
 ## Schema
 
-### Required
+### Optional
 
-All arguments are technically optional but required for the provider to function. They can be set via environment variables or in the configuration block.
+- `api_base_url` (String) ProData API base URL (e.g., `https://my.pro-data.tech`). Can also be set via `PRODATA_API_BASE_URL` environment variable. **Required for provider to function.**
+- `api_key_id` (String) API Key ID for authentication. Can also be set via `PRODATA_API_KEY_ID` environment variable. **Required for provider to function.**
+- `api_secret_key` (String, Sensitive) API Secret Key for authentication. Can also be set via `PRODATA_API_SECRET_KEY` environment variable. **Required for provider to function.**
+- `region` (String) Default region ID (e.g., `UZ-5`, `UZ-3`, `KZ-1`). Can also be set via `PRODATA_REGION` environment variable.
+- `project_id` (Number) Default project ID. Can also be set via `PRODATA_PROJECT_ID` environment variable.
 
-- `api_base_url` (String) ProData API base URL. See [Regional URLs](#regional-urls) below. Env: `PRODATA_API_BASE_URL`
-- `api_key_id` (String) API Key ID for authentication. Env: `PRODATA_API_KEY_ID`
-- `api_secret_key` (String, Sensitive) API Secret Key for authentication. Env: `PRODATA_API_SECRET_KEY`
-- `region` (String) Default region ID (e.g., "1", "2", "3"). Env: `PRODATA_REGION`
-- `project_id` (Number) Project ID. Env: `PRODATA_PROJECT_ID`
-
-## Regional URLs
-
-Use the appropriate base URL for your region:
+## Regional API URLs
 
 | Region     | Base URL                     |
 | ---------- | ---------------------------- |
 | Uzbekistan | `https://my.pro-data.tech`   |
 | Kazakhstan | `https://kz-1.pro-data.tech` |
 
-## Getting API Credentials
-
-1. Log in to your ProData Cloud console (see [Regional URLs](#regional-urls))
-2. Go to **Account** → **Access Keys**
-3. Click **Generate Key**
-4. Save your API Key ID and Secret (shown only once)
-
 ## Support
-
-Need help? Contact ProData support:
 
 - **Help Desk**: [helpdesk.pro-data.tech](https://helpdesk.pro-data.tech)
 - **Telegram**: [@PRO_DATA_Support_Bot](https://t.me/PRO_DATA_Support_Bot)

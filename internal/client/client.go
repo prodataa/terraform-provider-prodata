@@ -17,6 +17,7 @@ type Client struct {
 	baseURL      string
 	apiKeyID     string
 	apiSecretKey string
+	userAgent    string
 	Region       string
 	ProjectID    int64
 	httpClient   *http.Client
@@ -26,6 +27,7 @@ type Config struct {
 	APIBaseURL   string
 	APIKeyID     string
 	APISecretKey string
+	UserAgent    string
 	Region       string
 	ProjectID    int64
 }
@@ -39,6 +41,7 @@ func New(cfg Config) (*Client, error) {
 		baseURL:      strings.TrimRight(cfg.APIBaseURL, "/") + "/panel-main",
 		apiKeyID:     cfg.APIKeyID,
 		apiSecretKey: cfg.APISecretKey,
+		userAgent:    cfg.UserAgent,
 		Region:       cfg.Region,
 		ProjectID:    cfg.ProjectID,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
@@ -56,16 +59,20 @@ type apiError struct {
 	Message string `json:"message"`
 }
 
-func (c *Client) Do(ctx context.Context, method, path string, body, result any) error {
+// RequestOpts allows per-request overrides of region and project.
+type RequestOpts struct {
+	Region    string
+	ProjectID int64
+}
+
+func (c *Client) Do(ctx context.Context, method, path string, body, result any, opts *RequestOpts) error {
 	var reqBody io.Reader
-	var reqBodyStr string
 
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
 			return fmt.Errorf("marshal request: %w", err)
 		}
-		reqBodyStr = string(b)
 		reqBody = bytes.NewReader(b)
 	}
 
@@ -75,63 +82,52 @@ func (c *Client) Do(ctx context.Context, method, path string, body, result any) 
 		return fmt.Errorf("create request: %w", err)
 	}
 
+	// Determine region and project: use per-request opts if provided, else client defaults.
+	region := c.Region
+	projectID := c.ProjectID
+	if opts != nil {
+		if opts.Region != "" {
+			region = opts.Region
+		}
+		if opts.ProjectID != 0 {
+			projectID = opts.ProjectID
+		}
+	}
+
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("X-Api-Key-Id", c.apiKeyID)
 	req.Header.Set("X-Api-Secret-Key", c.apiSecretKey)
-	req.Header.Set("X-Region", c.Region)
-	req.Header.Set("X-Project-Id", strconv.FormatInt(c.ProjectID, 10))
+	req.Header.Set("X-Region", region)
+	req.Header.Set("X-Project-Id", strconv.FormatInt(projectID, 10))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %w\n%s", err, c.debugInfo(method, fullURL, req.Header, reqBodyStr, "", 0))
+		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("read response: %w\n%s", err, c.debugInfo(method, fullURL, req.Header, reqBodyStr, "", resp.StatusCode))
+		return fmt.Errorf("read response: %w", err)
 	}
 
 	var apiResp apiResponse[json.RawMessage]
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return fmt.Errorf("parse response: %w\n%s", err, c.debugInfo(method, fullURL, req.Header, reqBodyStr, string(respBody), resp.StatusCode))
+		return fmt.Errorf("parse response: %w", err)
 	}
 
 	if !apiResp.Success {
-		return fmt.Errorf("api error: %s\n%s", formatAPIErrors(apiResp.Errors), c.debugInfo(method, fullURL, req.Header, reqBodyStr, string(respBody), resp.StatusCode))
+		return fmt.Errorf("api error: %s", formatAPIErrors(apiResp.Errors))
 	}
 
 	if result != nil {
 		if err := json.Unmarshal(apiResp.Data, result); err != nil {
-			return fmt.Errorf("parse data: %w\n%s", err, c.debugInfo(method, fullURL, req.Header, reqBodyStr, string(respBody), resp.StatusCode))
+			return fmt.Errorf("parse data: %w", err)
 		}
 	}
 
 	return nil
-}
-
-func (c *Client) debugInfo(method, url string, headers http.Header, reqBody, respBody string, statusCode int) string {
-	var sb strings.Builder
-	sb.WriteString("\n=== Debug ===\n")
-	sb.WriteString(fmt.Sprintf("Method: %s\nURL: %s\n", method, url))
-	sb.WriteString("Headers:\n")
-	for k, v := range headers {
-		val := strings.Join(v, ", ")
-		if k == "X-Api-Secret-Key" && len(val) > 8 {
-			val = val[:4] + "****" + val[len(val)-4:]
-		}
-		sb.WriteString(fmt.Sprintf("  %s: %s\n", k, val))
-	}
-	if reqBody != "" {
-		sb.WriteString(fmt.Sprintf("Request Body: %s\n", reqBody))
-	}
-	if statusCode > 0 {
-		sb.WriteString(fmt.Sprintf("Status: %d\n", statusCode))
-	}
-	if respBody != "" {
-		sb.WriteString(fmt.Sprintf("Response: %s\n", respBody))
-	}
-	return sb.String()
 }
 
 func formatAPIErrors(errs []apiError) string {
@@ -160,18 +156,7 @@ type ImageQuery struct {
 }
 
 func (c *Client) GetImage(ctx context.Context, q ImageQuery) (*Image, error) {
-	region := c.Region
-	if q.Region != "" {
-		region = q.Region
-	}
-	projectID := c.ProjectID
-	if q.ProjectID != 0 {
-		projectID = q.ProjectID
-	}
-
 	params := url.Values{}
-	params.Set("region", region)
-	params.Set("projectId", strconv.FormatInt(projectID, 10))
 
 	if q.Slug != "" {
 		params.Set("slug", q.Slug)
@@ -181,9 +166,13 @@ func (c *Client) GetImage(ctx context.Context, q ImageQuery) (*Image, error) {
 		return nil, fmt.Errorf("either slug or name is required")
 	}
 
+	opts := &RequestOpts{
+		Region:    q.Region,
+		ProjectID: q.ProjectID,
+	}
+
 	var img Image
-	err := c.Do(ctx, http.MethodGet, "/api/v2/image?"+params.Encode(), nil, &img)
-	if err != nil {
+	if err := c.Do(ctx, http.MethodGet, "/api/v2/image?"+params.Encode(), nil, &img, opts); err != nil {
 		return nil, err
 	}
 	return &img, nil

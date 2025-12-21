@@ -114,22 +114,19 @@ func (d *ImageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	// Build query with optional overrides
+	// Build query with optional overrides.
 	query := client.ImageQuery{}
-	if !data.Slug.IsNull() {
-		query.Slug = data.Slug.ValueString()
-	}
-	if !data.Name.IsNull() {
-		query.Name = data.Name.ValueString()
-	}
-	if !data.Region.IsNull() {
+	query.Slug = data.Slug.ValueString()
+	query.Name = data.Name.ValueString()
+
+	if !data.Region.IsNull() && !data.Region.IsUnknown() {
 		query.Region = data.Region.ValueString()
 	}
-	if !data.ProjectID.IsNull() {
+	if !data.ProjectID.IsNull() && !data.ProjectID.IsUnknown() {
 		query.ProjectID = data.ProjectID.ValueInt64()
 	}
 
-	tflog.Debug(ctx, "Looking up image", map[string]interface{}{
+	tflog.Debug(ctx, "Looking up image", map[string]any{
 		"slug":       query.Slug,
 		"name":       query.Name,
 		"region":     query.Region,
@@ -145,7 +142,7 @@ func (d *ImageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	data.ID = types.Int64Value(image.ID)
 	data.IsCustom = types.BoolValue(image.IsCustom)
 
-	tflog.Debug(ctx, "Successfully read image", map[string]interface{}{
+	tflog.Debug(ctx, "Successfully read image", map[string]any{
 		"id":        data.ID.ValueInt64(),
 		"is_custom": data.IsCustom.ValueBool(),
 	})
