@@ -202,3 +202,12 @@ func (c *Client) GetVolumes(ctx context.Context, opts *RequestOpts) ([]Volume, e
 	}
 	return volumes, nil
 }
+
+func (c *Client) GetVolume(ctx context.Context, id int64, opts *RequestOpts) (*Volume, error) {
+	var volume Volume
+	path := fmt.Sprintf("/api/v2/volumes/%d", id)
+	if err := c.Do(ctx, http.MethodGet, path, nil, &volume, opts); err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
