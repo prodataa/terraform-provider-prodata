@@ -278,3 +278,50 @@ func (c *Client) CreateVolume(ctx context.Context, req CreateVolumeRequest) (*Vo
 	return &volume, nil
 }
 
+type UpdateVolumeRequest struct {
+	Name string `json:"name"`
+}
+
+func (c *Client) UpdateVolume(ctx context.Context, id int64, req UpdateVolumeRequest, opts *RequestOpts) (*Volume, error) {
+	path := fmt.Sprintf("/api/v2/volumes/%d", id)
+
+	// Only add query params if explicitly provided in opts (overrides provider defaults)
+	if opts != nil && (opts.Region != "" || opts.ProjectID != 0) {
+		params := url.Values{}
+		if opts.Region != "" {
+			params.Set("region", opts.Region)
+		}
+		if opts.ProjectID != 0 {
+			params.Set("projectId", strconv.FormatInt(opts.ProjectID, 10))
+		}
+		path = path + "?" + params.Encode()
+	}
+
+	var volume Volume
+	if err := c.Do(ctx, http.MethodPut, path, req, &volume, opts); err != nil {
+		return nil, err
+	}
+	return &volume, nil
+}
+
+func (c *Client) DeleteVolume(ctx context.Context, id int64, opts *RequestOpts) error {
+	path := fmt.Sprintf("/api/v2/volumes/%d", id)
+
+	// Only add query params if explicitly provided in opts (overrides provider defaults)
+	if opts != nil && (opts.Region != "" || opts.ProjectID != 0) {
+		params := url.Values{}
+		if opts.Region != "" {
+			params.Set("region", opts.Region)
+		}
+		if opts.ProjectID != 0 {
+			params.Set("projectId", strconv.FormatInt(opts.ProjectID, 10))
+		}
+		path = path + "?" + params.Encode()
+	}
+
+	if err := c.Do(ctx, http.MethodDelete, path, nil, nil, opts); err != nil {
+		return err
+	}
+	return nil
+}
+

@@ -7,16 +7,14 @@ terraform {
 }
 
 provider "prodata" {
-  # Configuration options
+  # Configuration options (region and project_id can be set here as defaults)
 }
 
-# Create an HDD volume
+# Create an HDD volume using provider defaults for region and project_id
 resource "prodata_volume" "main" {
-  region     = "UZ-5"
-  project_id = 89
-  name       = "terraform-volume"
-  type       = "HDD"
-  size       = 10
+  name = "terraform-volume"
+  type = "HDD"
+  size = 10
 }
 
 output "volume" {
@@ -28,7 +26,7 @@ output "volume" {
   }
 }
 
-# Create an SSD volume
+# Create an SSD volume with explicit region and project_id (overrides provider defaults)
 resource "prodata_volume" "ssd" {
   region     = "UZ5"
   project_id = 89

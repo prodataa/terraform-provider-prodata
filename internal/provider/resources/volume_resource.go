@@ -83,8 +83,11 @@ func (r *VolumeResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				},
 			},
 			"size": schema.Int64Attribute{
-				MarkdownDescription: "The size of the volume in GB.",
+				MarkdownDescription: "The size of the volume in GB. Changing this forces a new resource.",
 				Required:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -170,19 +173,13 @@ func (r *VolumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	// Use provider defaults if not set in state
-	region := data.Region.ValueString()
-	if region == "" {
-		region = r.client.Region
+	// Only set opts if explicitly provided in resource (overrides provider defaults)
+	opts := &client.RequestOpts{}
+	if !data.Region.IsNull() && !data.Region.IsUnknown() {
+		opts.Region = data.Region.ValueString()
 	}
-	projectID := data.ProjectID.ValueInt64()
-	if projectID == 0 {
-		projectID = r.client.ProjectID
-	}
-
-	opts := &client.RequestOpts{
-		Region:    region,
-		ProjectID: projectID,
+	if !data.ProjectID.IsNull() && !data.ProjectID.IsUnknown() {
+		opts.ProjectID = data.ProjectID.ValueInt64()
 	}
 
 	volumeID := data.ID.ValueInt64()
@@ -212,16 +209,55 @@ func (r *VolumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 }
 
 func (r *VolumeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data VolumeResourceModel
+	var plan VolumeResourceModel
+	var state VolumeResourceModel
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Volume update is not supported by the API yet.
-	// For now, just refresh the state.
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// Only set opts if explicitly provided in resource (overrides provider defaults)
+	opts := &client.RequestOpts{}
+	if !plan.Region.IsNull() && !plan.Region.IsUnknown() {
+		opts.Region = plan.Region.ValueString()
+	}
+	if !plan.ProjectID.IsNull() && !plan.ProjectID.IsUnknown() {
+		opts.ProjectID = plan.ProjectID.ValueInt64()
+	}
+
+	volumeID := state.ID.ValueInt64()
+
+	// Only name can be updated via API
+	updateReq := client.UpdateVolumeRequest{
+		Name: plan.Name.ValueString(),
+	}
+
+	tflog.Debug(ctx, "Updating volume", map[string]any{
+		"id":         volumeID,
+		"name":       updateReq.Name,
+		"region":     opts.Region,
+		"project_id": opts.ProjectID,
+	})
+
+	volume, err := r.client.UpdateVolume(ctx, volumeID, updateReq, opts)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to Update Volume", err.Error())
+		return
+	}
+
+	plan.ID = state.ID
+	plan.Name = types.StringValue(volume.Name)
+	plan.Type = types.StringValue(volume.Type)
+	plan.Size = types.Int64Value(volume.Size)
+
+	tflog.Debug(ctx, "Updated volume", map[string]any{
+		"id":   volumeID,
+		"name": volume.Name,
+	})
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *VolumeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -232,7 +268,30 @@ func (r *VolumeResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		return
 	}
 
-	// Volume delete is not supported by the API yet.
-	// For now, just refresh the state.
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// Only set opts if explicitly provided in resource (overrides provider defaults)
+	opts := &client.RequestOpts{}
+	if !data.Region.IsNull() && !data.Region.IsUnknown() {
+		opts.Region = data.Region.ValueString()
+	}
+	if !data.ProjectID.IsNull() && !data.ProjectID.IsUnknown() {
+		opts.ProjectID = data.ProjectID.ValueInt64()
+	}
+
+	volumeID := data.ID.ValueInt64()
+
+	tflog.Debug(ctx, "Deleting volume", map[string]any{
+		"id":         volumeID,
+		"region":     opts.Region,
+		"project_id": opts.ProjectID,
+	})
+
+	err := r.client.DeleteVolume(ctx, volumeID, opts)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to Delete Volume", err.Error())
+		return
+	}
+
+	tflog.Debug(ctx, "Deleted volume", map[string]any{
+		"id": volumeID,
+	})
 }
