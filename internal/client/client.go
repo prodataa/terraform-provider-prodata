@@ -325,3 +325,99 @@ func (c *Client) DeleteVolume(ctx context.Context, id int64, opts *RequestOpts) 
 	return nil
 }
 
+// LocalNetwork represents a local network resource.
+type LocalNetwork struct {
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	CIDR    string `json:"cidr"`
+	Gateway string `json:"gateway"`
+	Linked  bool   `json:"linked"`
+}
+
+func (c *Client) GetLocalNetworks(ctx context.Context, opts *RequestOpts) ([]LocalNetwork, error) {
+	var networks []LocalNetwork
+	if err := c.Do(ctx, http.MethodGet, "/api/v2/local-networks", nil, &networks, opts); err != nil {
+		return nil, err
+	}
+	return networks, nil
+}
+
+type CreateLocalNetworkRequest struct {
+	Region    string `json:"region"`
+	ProjectID int64  `json:"projectId"`
+	Name      string `json:"name"`
+	CIDR      string `json:"cidr"`
+	Gateway   string `json:"gateway"`
+}
+
+func (c *Client) CreateLocalNetwork(ctx context.Context, req CreateLocalNetworkRequest) (*LocalNetwork, error) {
+	if req.Region == "" {
+		req.Region = c.Region
+	}
+	if req.ProjectID == 0 {
+		req.ProjectID = c.ProjectID
+	}
+
+	var network LocalNetwork
+	if err := c.Do(ctx, http.MethodPost, "/api/v2/local-networks", req, &network, nil); err != nil {
+		return nil, err
+	}
+	return &network, nil
+}
+
+func (c *Client) GetLocalNetwork(ctx context.Context, id int64, opts *RequestOpts) (*LocalNetwork, error) {
+	var network LocalNetwork
+	path := fmt.Sprintf("/api/v2/local-networks/%d", id)
+	if err := c.Do(ctx, http.MethodGet, path, nil, &network, opts); err != nil {
+		return nil, err
+	}
+	return &network, nil
+}
+
+type UpdateLocalNetworkRequest struct {
+	Name string `json:"name"`
+}
+
+func (c *Client) UpdateLocalNetwork(ctx context.Context, id int64, req UpdateLocalNetworkRequest, opts *RequestOpts) (*LocalNetwork, error) {
+	path := fmt.Sprintf("/api/v2/local-networks/%d", id)
+
+	// Only add query params if explicitly provided in opts (overrides provider defaults)
+	if opts != nil && (opts.Region != "" || opts.ProjectID != 0) {
+		params := url.Values{}
+		if opts.Region != "" {
+			params.Set("region", opts.Region)
+		}
+		if opts.ProjectID != 0 {
+			params.Set("projectId", strconv.FormatInt(opts.ProjectID, 10))
+		}
+		path = path + "?" + params.Encode()
+	}
+
+	var network LocalNetwork
+	if err := c.Do(ctx, http.MethodPut, path, req, &network, opts); err != nil {
+		return nil, err
+	}
+	return &network, nil
+}
+
+func (c *Client) DeleteLocalNetwork(ctx context.Context, id int64, opts *RequestOpts) error {
+	path := fmt.Sprintf("/api/v2/local-networks/%d", id)
+
+	// Only add query params if explicitly provided in opts (overrides provider defaults)
+	if opts != nil && (opts.Region != "" || opts.ProjectID != 0) {
+		params := url.Values{}
+		if opts.Region != "" {
+			params.Set("region", opts.Region)
+		}
+		if opts.ProjectID != 0 {
+			params.Set("projectId", strconv.FormatInt(opts.ProjectID, 10))
+		}
+		path = path + "?" + params.Encode()
+	}
+
+	if err := c.Do(ctx, http.MethodDelete, path, nil, nil, opts); err != nil {
+		return err
+	}
+	return nil
+}
+

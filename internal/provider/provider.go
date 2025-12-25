@@ -157,6 +157,7 @@ func (p *ProDataProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (p *ProDataProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewVolumeResource,
+		resources.NewLocalNetworkResource,
 	}
 }
 
@@ -166,5 +167,7 @@ func (p *ProDataProvider) DataSources(ctx context.Context) []func() datasource.D
 		datasources.NewImagesDataSource,
 		datasources.NewVolumeDataSource,
 		datasources.NewVolumesDataSource,
+		datasources.NewLocalNetworkDataSource,
+		datasources.NewLocalNetworksDataSource,
 	}
 }
